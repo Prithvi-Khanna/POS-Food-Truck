@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { store } from "./OfflineDataStore";
 import { syncEngine } from "./SyncEngine";
 import { printManager } from "./PrintJobManager";
+import "./App.css";
 
 const calcOrderTotal = (items, dishesMap) => {
   let total = 0;
@@ -70,7 +71,13 @@ export default function App() {
       store.on("orders:changed", onOrdersChange);
       await onPrintChange();
       await onOrdersChange();
-      return () => clearInterval(printInterval);
+      return () => {
+        mountedRef.current = false;
+        syncEngine.stopAuto();
+        if (printInterval) clearInterval(printInterval);
+        if (onPrintChange) store.off("printjobs:changed", onPrintChange);
+        if (onOrdersChange) store.off("orders:changed", onOrdersChange);
+      };
     })();
 
     return () => {
@@ -173,36 +180,17 @@ export default function App() {
     const currentDish = filtered[index];
     if (!currentDish) return null;
     return (
-      <div
-        style={{
-          ...style,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px",
-          boxSizing: "border-box",
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div
-            style={{
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {currentDish.name}
-          </div>
-          <div style={{ fontSize: 12, color: "#666" }}>
+      <div className="dish-row" style={style}>
+        <div className="dish-row-info">
+          <div className="dish-row-name">{currentDish.name}</div>
+          <div className="dish-row-category">
             {currentDish.category} • ₹{currentDish.price}
           </div>
         </div>
-        <div style={{ marginLeft: 12 }}>
+        <div className="dish-row-action">
           <button
             onClick={() => addToCart(String(currentDish.id))}
-            style={{ padding: "6px 10px", touchAction: "manipulation" }}
+            className="add-btn"
           >
             Add
           </button>
@@ -217,22 +205,14 @@ export default function App() {
       price: 0,
     };
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 0",
-          borderBottom: "1px solid #f2f2f2",
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600 }}>{currentDish.name}</div>
-          <div style={{ fontSize: 12, color: "#666" }}>
+      <div className="cart-item">
+        <div className="cart-item-info">
+          <div className="cart-item-name">{currentDish.name}</div>
+          <div className="cart-item-meta">
             ₹{currentDish.price} • opts: {JSON.stringify(dishItem.opts || {})}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="cart-item-actions">
           <input
             type="number"
             min="1"
@@ -240,7 +220,7 @@ export default function App() {
             onChange={(e) =>
               setQty(idx, Math.max(1, parseInt(e.target.value || 1)))
             }
-            style={{ width: 64, padding: 6 }}
+            className="qty-input"
           />
           <button onClick={() => removeItem(idx)} aria-label="remove">
             Remove
@@ -251,58 +231,33 @@ export default function App() {
   };
 
   return (
-    <div
-      style={{
-        padding: 16,
-        fontFamily: "system-ui, -apple-system, Roboto, Arial",
-        maxWidth: 1100,
-        margin: "0 auto",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Food Truck POS</h1>
-        <div style={{ fontSize: 13, color: "#444" }}>
+    <div className="main-container">
+      <header className="header">
+        <h1 className="header-title">Food Truck POS</h1>
+        <div className="header-status">
           {navigator.onLine ? "Online" : "Offline"}
         </div>
       </header>
 
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 16 }}
-      >
-        <section style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+      <div className="main-grid">
+        <section className="menu-section">
+          <div className="search-bar">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search dishes (name or category)"
-              style={{ flex: 1, padding: 8 }}
+              className="search-input"
             />
-            <button
-              onClick={() => setQuery("")}
-              style={{ padding: "8px 12px" }}
-            >
+            <button onClick={() => setQuery("")} className="clear-btn">
               Clear
             </button>
           </div>
 
-          <div
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+          <div className="menu-list">
             {filtered.length === 0 ? (
-              <div style={{ padding: 20 }}>No dishes found</div>
+              <div className="no-dishes">No dishes found</div>
             ) : (
-              <div style={{ maxHeight: 500, overflowY: "auto" }}>
+              <div className="menu-scroll">
                 {filtered.map((_, index) => (
                   <Row key={filtered[index].id} index={index} />
                 ))}
@@ -311,49 +266,31 @@ export default function App() {
           </div>
         </section>
 
-        <aside
-          style={{
-            border: "1px solid #eee",
-            borderRadius: 8,
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <aside className="cart-aside">
           <div>
-            <h3 style={{ margin: "4px 0" }}>Cart</h3>
-            <div style={{ minHeight: 160 }}>
+            <h3 className="cart-title">Cart</h3>
+            <div className="cart-list">
               {cart.length === 0 ? (
-                <div style={{ color: "#888" }}>Cart is empty</div>
+                <div className="cart-empty">Cart is empty</div>
               ) : (
                 cart.map((dishItem, idx) => (
                   <CartItem key={idx} dishItem={dishItem} idx={idx} />
                 ))
               )}
             </div>
-            <div style={{ marginTop: 8, fontWeight: 700 }}>
-              Total: ₹{totalCart}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <div className="cart-total">Total: ₹{totalCart}</div>
+            <div className="cart-actions">
               <button
                 onClick={handleCheckout}
                 disabled={!cart.length}
-                style={{
-                  padding: "10px 14px",
-                  background: "#0b7",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  touchAction: "manipulation",
-                }}
+                className="checkout-btn"
               >
                 Checkout
               </button>
               <button
                 onClick={() => setCart([])}
                 disabled={!cart.length}
-                style={{ padding: "10px 14px" }}
+                className="clear-cart-btn"
               >
                 Clear
               </button>
@@ -361,25 +298,19 @@ export default function App() {
           </div>
 
           <div>
-            <h4 style={{ margin: "4px 0" }}>Print Jobs</h4>
-            <div style={{ maxHeight: 160, overflow: "auto", fontSize: 13 }}>
+            <h4 className="print-title">Print Jobs</h4>
+            <div className="print-list">
               {printJobs.length === 0 ? (
-                <div style={{ color: "#888" }}>No print jobs</div>
+                <div className="print-empty">No print jobs</div>
               ) : (
                 printJobs.map((printJob) => (
-                  <div
-                    key={printJob.id}
-                    style={{
-                      padding: "6px 0",
-                      borderBottom: "1px dashed #eee",
-                    }}
-                  >
+                  <div key={printJob.id} className="print-job">
                     <div>
                       <strong>{printJob.destination}</strong> •{" "}
                       {printJob.status}{" "}
                       {printJob.retries ? `• retries:${printJob.retries}` : ""}
                     </div>
-                    <div style={{ color: "#444", fontSize: 12 }}>
+                    <div className="print-job-meta">
                       {printJob.template?.slice?.(0, 120) ||
                         JSON.stringify(printJob.meta || {})}
                     </div>
@@ -390,23 +321,17 @@ export default function App() {
           </div>
 
           <div>
-            <h4 style={{ margin: "4px 0" }}>Recent Orders</h4>
-            <div style={{ maxHeight: 160, overflow: "auto", fontSize: 13 }}>
+            <h4 className="orders-title">Recent Orders</h4>
+            <div className="orders-list">
               {orders.length === 0 ? (
-                <div style={{ color: "#888" }}>No orders yet</div>
+                <div className="orders-empty">No orders yet</div>
               ) : (
                 orders.slice(0, 8).map((order) => (
-                  <div
-                    key={order.id}
-                    style={{
-                      padding: "6px 0",
-                      borderBottom: "1px dashed #eee",
-                    }}
-                  >
+                  <div key={order.id} className="order-item">
                     <div>
                       <strong>{order.id}</strong> • {order.status}
                     </div>
-                    <div style={{ fontSize: 12 }}>
+                    <div className="order-meta">
                       {order.items
                         .map(
                           (dishItem) =>
